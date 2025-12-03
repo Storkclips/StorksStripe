@@ -103,6 +103,8 @@ const AlertsPage = () => {
         message: 'This is a test alert!'
       });
     };
+    
+    window.showAlert = showAlert;
   }, []);
 
   return (
