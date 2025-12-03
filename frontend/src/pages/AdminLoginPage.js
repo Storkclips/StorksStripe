@@ -17,7 +17,7 @@ const AdminLoginPage = () => {
     if (password === ADMIN_PASSWORD) {
       // Store auth in sessionStorage
       sessionStorage.setItem('adminAuth', 'true');
-      navigate('/alerts');
+      navigate('/dashboard');
     } else {
       setError('Incorrect password');
       setPassword('');
