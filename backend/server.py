@@ -105,15 +105,15 @@ async def update_creator_profile(profile_update: CreatorProfileUpdate):
 
 @api_router.post("/checkout/session")
 async def create_checkout_session(request: CheckoutRequest):
+    # Validate amount first (before try block)
+    if request.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+    
     try:
         # Get Stripe API key
         api_key = os.environ.get('STRIPE_API_KEY')
         if not api_key:
             raise HTTPException(status_code=500, detail="Stripe API key not configured")
-        
-        # Validate amount
-        if request.amount <= 0:
-            raise HTTPException(status_code=400, detail="Amount must be greater than 0")
         
         # Build webhook and redirect URLs
         webhook_url = f"{request.origin_url}/api/webhook/stripe"
