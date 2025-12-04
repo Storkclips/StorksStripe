@@ -134,7 +134,7 @@ const HomePage = () => {
           cursor: 'pointer',
           transition: 'all 0.3s',
           opacity: 0.3,
-          zIndex: 1000
+          zIndex: 99999
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.opacity = '1';
