@@ -64,14 +64,24 @@ const AlertsTestPage = () => {
           marginBottom: '2rem'
         }}>
           <h1 style={{ fontSize: '2rem', fontWeight: '700' }}>Alert Testing Dashboard</h1>
-          <button
-            onClick={handleLogout}
-            className="btn btn-outline"
-            data-testid="logout-button"
-          >
-            <LogOut size={20} />
-            Logout
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={() => navigate('/settings')}
+              className="btn btn-outline"
+              data-testid="settings-button"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m-9-9h6m6 0h6m-9 9-4.24-4.24m12.48 0L18 16.24M7.76 7.76 3.52 3.52m16.96 16.96-4.24-4.24"></path></svg>
+              Settings
+            </button>
+            <button
+              onClick={handleLogout}
+              className="btn btn-outline"
+              data-testid="logout-button"
+            >
+              <LogOut size={20} />
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* Quick Test Card */}
