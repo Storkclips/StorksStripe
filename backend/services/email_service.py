@@ -62,7 +62,7 @@ class EmailService:
         
         try:
             response = resend.Emails.send({
-                "from": "noreply@tippingpage.com",
+                "from": "Tipping Page <onboarding@resend.dev>",
                 "to": email,
                 "subject": "Password Changed Successfully",
                 "html": html_content,
