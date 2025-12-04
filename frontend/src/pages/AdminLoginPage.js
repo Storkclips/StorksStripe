@@ -172,8 +172,10 @@ const AdminLoginPage = () => {
           color: '#6b7280',
           textAlign: 'center'
         }}>
-          <strong>Default Password:</strong> admin123<br />
-          (Change in AdminLoginPage.js)
+          <strong>Default Credentials:</strong><br />
+          Email: admin@tippingpage.com<br />
+          Password: Admin@123<br />
+          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Change password after first login</span>
         </div>
       </div>
     </div>
