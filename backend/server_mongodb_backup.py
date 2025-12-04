@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter, Request, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from supabase import create_client, Client
+from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
@@ -15,10 +15,10 @@ from emergentintegrations.payments.stripe.checkout import StripeCheckout, Checko
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Supabase connection
-SUPABASE_URL = os.environ['SUPABASE_URL']
-SUPABASE_KEY = os.environ['SUPABASE_SERVICE_KEY']
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# MongoDB connection
+mongo_url = os.environ['MONGO_URL']
+client = AsyncIOMotorClient(mongo_url)
+db = client[os.environ['DB_NAME']]
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -73,44 +73,35 @@ class TipResponse(BaseModel):
 # Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Tipping Page API with Supabase"}
+    return {"message": "Tipping Page API"}
 
 @api_router.get("/creator", response_model=CreatorProfile)
 async def get_creator_profile():
-    try:
-        response = supabase.table('creator_profile').select("*").limit(1).execute()
-        if response.data and len(response.data) > 0:
-            return CreatorProfile(**response.data[0])
+    profile = await db.creator_profile.find_one({}, {"_id": 0})
+    if not profile:
+        # Return default profile
         return CreatorProfile()
-    except Exception as e:
-        logging.error(f"Error fetching creator profile: {str(e)}")
-        return CreatorProfile()
+    return CreatorProfile(**profile)
 
 @api_router.post("/creator", response_model=CreatorProfile)
 async def update_creator_profile(profile_update: CreatorProfileUpdate):
-    try:
-        # Get existing profile
-        response = supabase.table('creator_profile').select("*").limit(1).execute()
-        
-        if response.data and len(response.data) > 0:
-            # Update existing
-            existing = response.data[0]
-            update_data = profile_update.model_dump(exclude_none=True)
-            
-            updated = supabase.table('creator_profile').update(update_data).eq('id', existing['id']).execute()
-            return CreatorProfile(**updated.data[0])
-        else:
-            # Create new
-            new_profile = CreatorProfile()
-            update_data = profile_update.model_dump(exclude_none=True)
-            profile_dict = new_profile.model_dump()
-            profile_dict.update(update_data)
-            
-            created = supabase.table('creator_profile').insert(profile_dict).execute()
-            return CreatorProfile(**created.data[0])
-    except Exception as e:
-        logging.error(f"Error updating creator profile: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    # Get existing profile or create new one
+    existing = await db.creator_profile.find_one({}, {"_id": 0})
+    
+    if existing:
+        profile_data = existing
+    else:
+        profile_data = CreatorProfile().model_dump()
+    
+    # Update with new values
+    update_data = profile_update.model_dump(exclude_none=True)
+    profile_data.update(update_data)
+    
+    # Save to database
+    await db.creator_profile.delete_many({})
+    await db.creator_profile.insert_one(profile_data)
+    
+    return CreatorProfile(**profile_data)
 
 @api_router.post("/checkout/session")
 async def create_checkout_session(request: CheckoutRequest):
@@ -150,20 +141,22 @@ async def create_checkout_session(request: CheckoutRequest):
         
         session: CheckoutSessionResponse = await stripe_checkout.create_checkout_session(checkout_request)
         
-        # Create payment transaction record in Supabase
-        transaction_data = {
-            "id": str(uuid.uuid4()),
-            "session_id": session.session_id,
-            "amount": request.amount,
-            "currency": "usd",
-            "message": request.message,
-            "tipper_name": request.tipper_name or "Anonymous",
-            "status": "initiated",
-            "payment_status": "pending",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        # Create payment transaction record
+        transaction = PaymentTransaction(
+            session_id=session.session_id,
+            amount=request.amount,
+            currency="usd",
+            message=request.message,
+            tipper_name=request.tipper_name or "Anonymous",
+            status="initiated",
+            payment_status="pending"
+        )
         
-        supabase.table('payment_transactions').insert(transaction_data).execute()
+        # Convert to dict and serialize datetime
+        doc = transaction.model_dump()
+        doc['timestamp'] = doc['timestamp'].isoformat()
+        
+        await db.payment_transactions.insert_one(doc)
         
         return {"url": session.url, "session_id": session.session_id}
         
@@ -186,17 +179,19 @@ async def get_checkout_status(session_id: str):
         # Get checkout status from Stripe
         checkout_status: CheckoutStatusResponse = await stripe_checkout.get_checkout_status(session_id)
         
-        # Find transaction in Supabase
-        response = supabase.table('payment_transactions').select("*").eq('session_id', session_id).execute()
+        # Find transaction in database
+        transaction = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
         
-        if response.data and len(response.data) > 0:
-            transaction = response.data[0]
+        if transaction:
             # Only update if payment status changed to paid and not already processed
             if checkout_status.payment_status == "paid" and transaction.get("payment_status") != "paid":
-                supabase.table('payment_transactions').update({
-                    "status": checkout_status.status,
-                    "payment_status": checkout_status.payment_status
-                }).eq('session_id', session_id).execute()
+                await db.payment_transactions.update_one(
+                    {"session_id": session_id},
+                    {"$set": {
+                        "status": checkout_status.status,
+                        "payment_status": checkout_status.payment_status
+                    }}
+                )
         
         return {
             "session_id": session_id,
@@ -234,10 +229,13 @@ async def stripe_webhook(request: Request):
         
         # Update transaction based on webhook event
         if webhook_response.event_type == "checkout.session.completed":
-            supabase.table('payment_transactions').update({
-                "status": "completed",
-                "payment_status": webhook_response.payment_status
-            }).eq('session_id', webhook_response.session_id).execute()
+            await db.payment_transactions.update_one(
+                {"session_id": webhook_response.session_id},
+                {"$set": {
+                    "status": "completed",
+                    "payment_status": webhook_response.payment_status
+                }}
+            )
         
         return {"status": "success"}
         
@@ -247,25 +245,18 @@ async def stripe_webhook(request: Request):
 
 @api_router.get("/tips/recent", response_model=List[TipResponse])
 async def get_recent_tips(limit: int = 10):
-    try:
-        # Get successful tips only
-        response = supabase.table('payment_transactions').select(
-            "amount, message, tipper_name, timestamp"
-        ).eq('payment_status', 'paid').order('timestamp', desc=True).limit(limit).execute()
-        
-        tips = []
-        for tip in response.data:
-            tips.append(TipResponse(
-                amount=tip['amount'],
-                message=tip.get('message'),
-                tipper_name=tip.get('tipper_name'),
-                timestamp=datetime.fromisoformat(tip['timestamp'].replace('Z', '+00:00'))
-            ))
-        
-        return tips
-    except Exception as e:
-        logging.error(f"Error fetching recent tips: {str(e)}")
-        return []
+    # Get successful tips only
+    tips = await db.payment_transactions.find(
+        {"payment_status": "paid"},
+        {"_id": 0, "amount": 1, "message": 1, "tipper_name": 1, "timestamp": 1}
+    ).sort("timestamp", -1).limit(limit).to_list(limit)
+    
+    # Convert ISO string timestamps back to datetime objects
+    for tip in tips:
+        if isinstance(tip['timestamp'], str):
+            tip['timestamp'] = datetime.fromisoformat(tip['timestamp'])
+    
+    return tips
 
 
 # Include the router in the main app
@@ -285,3 +276,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    client.close()
