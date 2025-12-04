@@ -273,7 +273,7 @@ const AdminSettingsPage = () => {
               ) : (
                 <>
                   <Lock size={20} />
-                  Request Password Change
+                  Change Password
                 </>
               )}
             </button>
@@ -289,7 +289,7 @@ const AdminSettingsPage = () => {
             color: '#92400e'
           }}>
             <strong>🔒 Security Note:</strong><br />
-            You'll receive a verification email to complete the password change. The link expires in 15 minutes.
+            You will be automatically logged out after changing your password. Please log in again with your new password.
           </div>
         </div>
       </div>
