@@ -308,9 +308,9 @@ async def admin_login(login_data: AdminLoginRequest):
         }
     }
 
-@api_router.post("/admin/request-password-change")
-async def request_password_change(password_data: AdminPasswordChangeRequest):
-    """Request password change - sends verification email"""
+@api_router.post("/admin/change-password")
+async def change_admin_password(password_data: AdminPasswordChangeRequest):
+    """Change admin password directly (no email verification)"""
     try:
         # Verify current password
         admin_email = await auth_service.get_admin_email(password_data.admin_id)
@@ -321,22 +321,31 @@ async def request_password_change(password_data: AdminPasswordChangeRequest):
         if not admin:
             raise HTTPException(status_code=401, detail="Current password is incorrect")
         
-        # Create verification token
-        token = await auth_service.create_password_change_token(password_data.admin_id)
+        # Validate new password
+        if len(password_data.new_password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
         
-        # Send verification email
-        frontend_url = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')[0]
-        email_service.send_password_change_verification(admin_email, token, frontend_url)
+        if password_data.new_password == password_data.current_password:
+            raise HTTPException(status_code=400, detail="New password must be different from current password")
+        
+        # Hash and update password directly
+        hashed_password = auth_service.hash_password(password_data.new_password)
+        
+        from datetime import datetime, timezone
+        supabase.table('admin_users').update({
+            'hashed_password': hashed_password,
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }).eq('id', password_data.admin_id).execute()
         
         return {
             "success": True,
-            "message": "Verification email sent. Please check your inbox."
+            "message": "Password changed successfully"
         }
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error requesting password change: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to process request")
+        logging.error(f"Error changing password: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to change password")
 
 @api_router.post("/admin/verify-password-change")
 async def verify_password_change(verify_data: VerifyPasswordChangeRequest):
