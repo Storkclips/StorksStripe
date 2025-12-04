@@ -71,6 +71,38 @@ const AdminLoginPage = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="input-group">
+            <label htmlFor="email">Email</label>
+            <div style={{ position: 'relative' }}>
+              <Mail
+                style={{
+                  position: 'absolute',
+                  left: '1rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#9ca3af',
+                  pointerEvents: 'none'
+                }}
+                size={20}
+              />
+              <input
+                id="email"
+                data-testid="email-input"
+                type="email"
+                className="input"
+                placeholder="admin@tippingpage.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError('');
+                }}
+                style={{ paddingLeft: '2.75rem' }}
+                autoFocus
+                required
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
             <label htmlFor="password">Password</label>
             <div style={{ position: 'relative' }}>
               <input
@@ -78,13 +110,13 @@ const AdminLoginPage = () => {
                 data-testid="password-input"
                 type={showPassword ? 'text' : 'password'}
                 className="input"
-                placeholder="Enter admin password"
+                placeholder="Enter password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setError('');
                 }}
-                autoFocus
+                required
               />
               <button
                 type="button"
