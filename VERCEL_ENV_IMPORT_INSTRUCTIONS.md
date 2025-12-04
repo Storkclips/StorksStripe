@@ -1,12 +1,14 @@
 # 📥 Import Environment Variables into Vercel
 
-## Method 1: Direct Import (Easiest)
+## Method 1: Using Template File (Easiest)
 
-### Step 1: Update the Railway URL
+### Step 1: Download and Edit the Template
 
-1. Open the file: **`vercel.env`**
-2. Replace `REPLACE_WITH_YOUR_RAILWAY_URL` with your actual Railway backend URL
-3. Save the file
+1. In your GitHub repo, find the file: **`vercel-env-template.txt`**
+2. Download it to your computer
+3. Open in a text editor
+4. Replace `REPLACE_WITH_YOUR_RAILWAY_URL` with your actual Railway backend URL
+5. Save as `vercel.env` (remove the `-template.txt` part)
 
 **Example:**
 ```env
