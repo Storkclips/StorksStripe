@@ -22,6 +22,9 @@ SUPABASE_URL = os.environ['SUPABASE_URL']
 SUPABASE_KEY = os.environ['SUPABASE_SERVICE_KEY']
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Initialize auth service
+auth_service = AuthService(supabase)
+
 # Create the main app without a prefix
 app = FastAPI()
 
