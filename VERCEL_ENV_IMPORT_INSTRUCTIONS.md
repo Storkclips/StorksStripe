@@ -26,8 +26,13 @@ REACT_APP_BACKEND_URL="https://web-production-abc123.up.railway.app"
 1. Go to https://vercel.com/new
 2. Import your GitHub repository
 3. In the "Environment Variables" section, click **"Import .env"**
-4. Select the `vercel.env` file
+4. Select the `vercel.env` file you just created (the edited template)
 5. Click "Deploy"
+
+**OR use the JSON file:**
+1. Find `vercel-env-variables.json` in your repo
+2. Edit the Railway URL in that file
+3. In Vercel, you can paste the JSON values directly
 
 **Option B: After Project is Created**
 
