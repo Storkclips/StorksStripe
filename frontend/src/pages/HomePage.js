@@ -114,7 +114,43 @@ const HomePage = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #f9fafb, #ffffff)', paddingTop: '3rem', paddingBottom: '3rem' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #f9fafb, #ffffff)', paddingTop: '3rem', paddingBottom: '3rem', position: 'relative' }}>
+      {/* Hidden Admin Login Button */}
+      <button
+        onClick={() => navigate('/admin')}
+        data-testid="hidden-admin-button"
+        style={{
+          position: 'fixed',
+          bottom: '1rem',
+          right: '1rem',
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          background: 'rgba(102, 126, 234, 0.1)',
+          border: '1px solid rgba(102, 126, 234, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.3s',
+          opacity: 0.3,
+          zIndex: 1000
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.opacity = '1';
+          e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
+          e.currentTarget.style.transform = 'scale(1.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.opacity = '0.3';
+          e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+        title="Admin Login"
+      >
+        <Lock size={18} style={{ color: '#667eea' }} />
+      </button>
+
       <div className="container" style={{ maxWidth: '800px' }}>
         {/* Creator Profile Section */}
         <div className="card fade-in" style={{ marginBottom: '2rem', textAlign: 'center' }}>
