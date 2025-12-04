@@ -9,6 +9,7 @@ const API = `${BACKEND_URL}/api`;
 const PRESET_AMOUNTS = [5, 10, 25, 50, 100];
 
 const HomePage = () => {
+  const navigate = useNavigate();
   const [creator, setCreator] = useState(null);
   const [recentTips, setRecentTips] = useState([]);
   const [selectedAmount, setSelectedAmount] = useState(null);
