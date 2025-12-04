@@ -2,25 +2,40 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
 const AdminLoginPage = () => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Simple password (you can change this)
-  const ADMIN_PASSWORD = 'admin123';
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     
-    if (password === ADMIN_PASSWORD) {
-      // Store auth in sessionStorage
-      sessionStorage.setItem('adminAuth', 'true');
-      navigate('/dashboard');
-    } else {
-      setError('Incorrect password');
+    try {
+      const response = await axios.post(`${API}/admin/login`, {
+        email,
+        password
+      });
+      
+      if (response.data.success) {
+        // Store auth and admin info in sessionStorage
+        sessionStorage.setItem('adminAuth', 'true');
+        sessionStorage.setItem('adminId', response.data.admin.id);
+        sessionStorage.setItem('adminEmail', response.data.admin.email);
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Invalid email or password');
       setPassword('');
+    } finally {
+      setLoading(false);
     }
   };
 
