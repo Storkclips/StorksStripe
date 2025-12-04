@@ -273,6 +273,120 @@ async def get_recent_tips(limit: int = 10):
         return []
 
 
+# Admin Authentication Models
+class AdminLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class AdminPasswordChangeRequest(BaseModel):
+    admin_id: int
+    current_password: str
+    new_password: str
+
+class VerifyPasswordChangeRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+# Admin Authentication Routes
+@api_router.post("/admin/login")
+async def admin_login(login_data: AdminLoginRequest):
+    """Admin login endpoint"""
+    admin = await auth_service.authenticate_admin(login_data.email, login_data.password)
+    
+    if not admin:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+    
+    return {
+        "success": True,
+        "admin": {
+            "id": admin['id'],
+            "email": admin['email']
+        }
+    }
+
+@api_router.post("/admin/request-password-change")
+async def request_password_change(password_data: AdminPasswordChangeRequest):
+    """Request password change - sends verification email"""
+    try:
+        # Verify current password
+        admin_email = await auth_service.get_admin_email(password_data.admin_id)
+        if not admin_email:
+            raise HTTPException(status_code=404, detail="Admin not found")
+        
+        admin = await auth_service.authenticate_admin(admin_email, password_data.current_password)
+        if not admin:
+            raise HTTPException(status_code=401, detail="Current password is incorrect")
+        
+        # Create verification token
+        token = await auth_service.create_password_change_token(password_data.admin_id)
+        
+        # Send verification email
+        frontend_url = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')[0]
+        email_service.send_password_change_verification(admin_email, token, frontend_url)
+        
+        return {
+            "success": True,
+            "message": "Verification email sent. Please check your inbox."
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error requesting password change: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to process request")
+
+@api_router.post("/admin/verify-password-change")
+async def verify_password_change(verify_data: VerifyPasswordChangeRequest):
+    """Verify token and complete password change"""
+    try:
+        # Get token data to get admin email before changing password
+        response = supabase.table('password_change_tokens').select('*, admin_users(email)').eq('token', verify_data.token).eq('used', False).execute()
+        
+        if response.data and len(response.data) > 0:
+            admin_email = response.data[0]['admin_users']['email']
+        else:
+            admin_email = None
+        
+        # Verify and change password
+        success = await auth_service.verify_and_change_password(verify_data.token, verify_data.new_password)
+        
+        if success and admin_email:
+            # Send confirmation email
+            try:
+                email_service.send_password_changed_confirmation(admin_email)
+            except Exception as e:
+                logging.error(f"Failed to send confirmation email: {str(e)}")
+        
+        return {
+            "success": True,
+            "message": "Password changed successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error verifying password change: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to change password")
+
+@api_router.get("/admin/profile/{admin_id}")
+async def get_admin_profile(admin_id: int):
+    """Get admin profile"""
+    try:
+        response = supabase.table('admin_users').select('id, email, created_at').eq('id', admin_id).execute()
+        
+        if not response.data or len(response.data) == 0:
+            raise HTTPException(status_code=404, detail="Admin not found")
+        
+        return response.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error fetching admin profile: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch profile")
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
