@@ -1,15 +1,17 @@
-from fastapi import FastAPI, APIRouter, Request, HTTPException
+from fastapi import FastAPI, APIRouter, Request, HTTPException, Depends
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional, Dict
 import uuid
 from datetime import datetime, timezone
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
+from auth import AuthService
+from services.email_service import email_service
 
 
 ROOT_DIR = Path(__file__).parent
