@@ -69,21 +69,27 @@ const AdminSettingsPage = () => {
     try {
       const adminId = sessionStorage.getItem('adminId');
       
-      const response = await axios.post(`${API}/admin/request-password-change`, {
+      const response = await axios.post(`${API}/admin/change-password`, {
         admin_id: parseInt(adminId),
         current_password: currentPassword,
         new_password: newPassword
       });
 
       if (response.data.success) {
-        setSuccess('Verification email sent! Check your inbox to complete the password change.');
+        setSuccess('Password changed successfully! You will be logged out in 3 seconds...');
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
         setPasswordStrength(0);
+        
+        // Clear session and redirect to login after 3 seconds
+        setTimeout(() => {
+          sessionStorage.clear();
+          navigate('/admin');
+        }, 3000);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to process request');
+      setError(err.response?.data?.detail || 'Failed to change password');
     } finally {
       setLoading(false);
     }
